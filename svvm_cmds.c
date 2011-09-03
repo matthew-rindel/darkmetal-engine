@@ -1454,6 +1454,12 @@ static void VM_SV_WriteCoord(prvm_prog_t *prog)
 	MSG_WriteCoord (WriteDest(prog), PRVM_G_FLOAT(OFS_PARM1), sv.protocol);
 }
 
+static void VM_SV_WriteFloat(prvm_prog_t *prog)
+{
+	VM_SAFEPARMCOUNT(2, VM_SV_WriteFloat);
+	MSG_WriteFloat (WriteDest(prog), PRVM_G_FLOAT(OFS_PARM1));
+}
+
 static void VM_SV_WriteString(prvm_prog_t *prog)
 {
 	VM_SAFEPARMCOUNT(2, VM_SV_WriteString);
@@ -3463,7 +3469,7 @@ VM_SV_frameforname,				// #276 float(float modlindex, string framename) framefor
 VM_SV_frameduration,			// #277 float(float modlindex, float framenum) frameduration = #277; // (DP_SKELETONOBJECTS) returns the intended play time (in seconds) of the specified framegroup, if it does not exist the result is 0, if it is a single frame it may be a small value around 0.1 or 0.
 NULL,							// #278
 NULL,							// #279
-NULL,							// #280
+VM_SV_WriteFloat,				// #280 void(float to, float f) WriteFloat (FTE)
 NULL,							// #281
 NULL,							// #282
 NULL,							// #283
