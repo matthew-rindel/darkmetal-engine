@@ -4948,7 +4948,7 @@ NULL,							// #604
 VM_callfunction,				// #605
 VM_writetofile,					// #606
 VM_isfunction,					// #607
-NULL,							// #608
+VM_parseentitydata,				// #608
 NULL,							// #609
 VM_findkeysforcommand,			// #610 string findkeysforcommand(string command[, float bindmap])
 NULL,							// #611
