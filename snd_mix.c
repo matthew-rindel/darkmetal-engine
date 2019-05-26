@@ -29,7 +29,7 @@ static portable_sampleframe_t paintbuffer_unswapped[PAINTBUFFER_SIZE];
 extern speakerlayout_t snd_speakerlayout; // for querying the listeners
 
 #ifdef CONFIG_VIDEO_CAPTURE
-static void S_CaptureAVISound(const portable_sampleframe_t *paintbuffer, size_t length)
+static void S_CaptureAVISound(const portable_sampleframe_t *sampleframes, size_t length)
 {
 	size_t i;
 	unsigned int j;
@@ -42,7 +42,7 @@ static void S_CaptureAVISound(const portable_sampleframe_t *paintbuffer, size_t 
 	{
 		unsigned int j0 = snd_speakerlayout.listeners[j].channel_unswapped;
 		for(i = 0; i < length; ++i)
-			paintbuffer_unswapped[i].sample[j0] = paintbuffer[i].sample[j];
+			paintbuffer_unswapped[i].sample[j0] = sampleframes[i].sample[j];
 	}
 
 	SCR_CaptureVideo_SoundFrame(paintbuffer_unswapped, length);
@@ -125,16 +125,72 @@ static void S_SoftClipPaintBuffer(portable_sampleframe_t *painted_ptr, int nbfra
 	}
 }
 
-static void S_ConvertPaintBuffer(portable_sampleframe_t *painted_ptr, void *rb_ptr, int nbframes, int width, int channels)
+static void S_ConvertPaintBuffer(portable_sampleframe_t *painted_ptr, void *rb_ptr, int nbframes, int width, int nchannels)
 {
 	int i, val;
+	if (width == 4)  // 32bit float
+	{
+		float *snd_out = (float*)rb_ptr;
+		if (nchannels == 8)  // 7.1 surround
+		{
+			for (i = 0; i < nbframes; i++, painted_ptr++)
+			{
+				*snd_out++ = painted_ptr->sample[0];
+				*snd_out++ = painted_ptr->sample[1];
+				*snd_out++ = painted_ptr->sample[2];
+				*snd_out++ = painted_ptr->sample[3];
+				*snd_out++ = painted_ptr->sample[4];
+				*snd_out++ = painted_ptr->sample[5];
+				*snd_out++ = painted_ptr->sample[6];
+				*snd_out++ = painted_ptr->sample[7];
+			}
+		}
+		else if (nchannels == 6)  // 5.1 surround
+		{
+			for (i = 0; i < nbframes; i++, painted_ptr++)
+			{
+				*snd_out++ = painted_ptr->sample[0];
+				*snd_out++ = painted_ptr->sample[1];
+				*snd_out++ = painted_ptr->sample[2];
+				*snd_out++ = painted_ptr->sample[3];
+				*snd_out++ = painted_ptr->sample[4];
+				*snd_out++ = painted_ptr->sample[5];
+			}
+		}
+		else if (nchannels == 4)  // 4.0 surround
+		{
+			for (i = 0; i < nbframes; i++, painted_ptr++)
+			{
+				*snd_out++ = painted_ptr->sample[0];
+				*snd_out++ = painted_ptr->sample[1];
+				*snd_out++ = painted_ptr->sample[2];
+				*snd_out++ = painted_ptr->sample[3];
+			}
+		}
+		else if (nchannels == 2)  // 2.0 stereo
+		{
+			for (i = 0; i < nbframes; i++, painted_ptr++)
+			{
+				*snd_out++ = painted_ptr->sample[0];
+				*snd_out++ = painted_ptr->sample[1];
+			}
+		}
+		else if (nchannels == 1)  // 1.0 mono
+		{
+			for (i = 0; i < nbframes; i++, painted_ptr++)
+			{
+				*snd_out++ = painted_ptr->sample[0];
+			}
+		}
 
-	// FIXME: add 24bit and 32bit float formats
-	// FIXME: optimize with SSE intrinsics?
-	if (width == 2)  // 16bit
+		// noise is really really annoying
+		if (cls.timedemo)
+			memset(rb_ptr, 0, nbframes * nchannels * width);
+	}
+	else if (width == 2)  // 16bit
 	{
 		short *snd_out = (short*)rb_ptr;
-		if (channels == 8)  // 7.1 surround
+		if (nchannels == 8)  // 7.1 surround
 		{
 			for (i = 0;i < nbframes;i++, painted_ptr++)
 			{
@@ -148,7 +204,7 @@ static void S_ConvertPaintBuffer(portable_sampleframe_t *painted_ptr, void *rb_p
 				val = (int)(painted_ptr->sample[7] * 32768.0f);*snd_out++ = bound(-32768, val, 32767);
 			}
 		}
-		else if (channels == 6)  // 5.1 surround
+		else if (nchannels == 6)  // 5.1 surround
 		{
 			for (i = 0; i < nbframes; i++, painted_ptr++)
 			{
@@ -160,7 +216,7 @@ static void S_ConvertPaintBuffer(portable_sampleframe_t *painted_ptr, void *rb_p
 				val = (int)(painted_ptr->sample[5] * 32768.0f);*snd_out++ = bound(-32768, val, 32767);
 			}
 		}
-		else if (channels == 4)  // 4.0 surround
+		else if (nchannels == 4)  // 4.0 surround
 		{
 			for (i = 0; i < nbframes; i++, painted_ptr++)
 			{
@@ -170,7 +226,7 @@ static void S_ConvertPaintBuffer(portable_sampleframe_t *painted_ptr, void *rb_p
 				val = (int)(painted_ptr->sample[3] * 32768.0f);*snd_out++ = bound(-32768, val, 32767);
 			}
 		}
-		else if (channels == 2)  // 2.0 stereo
+		else if (nchannels == 2)  // 2.0 stereo
 		{
 			for (i = 0; i < nbframes; i++, painted_ptr++)
 			{
@@ -178,7 +234,7 @@ static void S_ConvertPaintBuffer(portable_sampleframe_t *painted_ptr, void *rb_p
 				val = (int)(painted_ptr->sample[1] * 32768.0f);*snd_out++ = bound(-32768, val, 32767);
 			}
 		}
-		else if (channels == 1)  // 1.0 mono
+		else if (nchannels == 1)  // 1.0 mono
 		{
 			for (i = 0; i < nbframes; i++, painted_ptr++)
 			{
@@ -188,12 +244,12 @@ static void S_ConvertPaintBuffer(portable_sampleframe_t *painted_ptr, void *rb_p
 
 		// noise is really really annoying
 		if (cls.timedemo)
-			memset(rb_ptr, 0, nbframes * channels * width);
+			memset(rb_ptr, 0, nbframes * nchannels * width);
 	}
 	else  // 8bit
 	{
 		unsigned char *snd_out = (unsigned char*)rb_ptr;
-		if (channels == 8)  // 7.1 surround
+		if (nchannels == 8)  // 7.1 surround
 		{
 			for (i = 0; i < nbframes; i++, painted_ptr++)
 			{
@@ -207,7 +263,7 @@ static void S_ConvertPaintBuffer(portable_sampleframe_t *painted_ptr, void *rb_p
 				val = (int)(painted_ptr->sample[7] * 128.0f) + 128; *snd_out++ = bound(0, val, 255);
 			}
 		}
-		else if (channels == 6)  // 5.1 surround
+		else if (nchannels == 6)  // 5.1 surround
 		{
 			for (i = 0; i < nbframes; i++, painted_ptr++)
 			{
@@ -219,7 +275,7 @@ static void S_ConvertPaintBuffer(portable_sampleframe_t *painted_ptr, void *rb_p
 				val = (int)(painted_ptr->sample[5] * 128.0f) + 128; *snd_out++ = bound(0, val, 255);
 			}
 		}
-		else if (channels == 4)  // 4.0 surround
+		else if (nchannels == 4)  // 4.0 surround
 		{
 			for (i = 0; i < nbframes; i++, painted_ptr++)
 			{
@@ -229,7 +285,7 @@ static void S_ConvertPaintBuffer(portable_sampleframe_t *painted_ptr, void *rb_p
 				val = (int)(painted_ptr->sample[3] * 128.0f) + 128; *snd_out++ = bound(0, val, 255);
 			}
 		}
-		else if (channels == 2)  // 2.0 stereo
+		else if (nchannels == 2)  // 2.0 stereo
 		{
 			for (i = 0; i < nbframes; i++, painted_ptr++)
 			{
@@ -237,7 +293,7 @@ static void S_ConvertPaintBuffer(portable_sampleframe_t *painted_ptr, void *rb_p
 				val = (int)(painted_ptr->sample[1] * 128.0f) + 128; *snd_out++ = bound(0, val, 255);
 			}
 		}
-		else if (channels == 1)  // 1.0 mono
+		else if (nchannels == 1)  // 1.0 mono
 		{
 			for (i = 0;i < nbframes;i++, painted_ptr++)
 			{
@@ -247,7 +303,7 @@ static void S_ConvertPaintBuffer(portable_sampleframe_t *painted_ptr, void *rb_p
 
 		// noise is really really annoying
 		if (cls.timedemo)
-			memset(rb_ptr, 128, nbframes * channels);
+			memset(rb_ptr, 128, nbframes * nchannels);
 	}
 }
 
