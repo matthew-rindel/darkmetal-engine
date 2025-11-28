@@ -1,0 +1,6 @@
+[submodule "battleMETAL"]
+	path = battleMETAL
+	url = https://github.com/matthew-rindel/battleMETAL
+[submodule "fteqw"]
+	path = fteqw
+	url = https://github.com/matthew-rindel/fteqw

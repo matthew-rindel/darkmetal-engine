@@ -1,9 +1,5 @@
 
 #ifdef WIN32
-#ifdef _MSC_VER
-#pragma comment(lib, "sdl.lib")
-#pragma comment(lib, "sdlmain.lib")
-#endif
 #include <io.h>
 #include "conio.h"
 #else

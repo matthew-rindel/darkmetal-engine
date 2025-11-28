@@ -1,4 +1,7 @@
 obj/
+out/
+build/
+.vs/
 *.d
 *.o
 *.i
@@ -19,3 +22,4 @@ Makefile.win
 *.dll
 *.dylib
 *.dSYM
+CMakeSettings.json
